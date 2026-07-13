@@ -28,7 +28,7 @@ func Generate(plugin *protogen.Plugin) error {
 		}
 		for _, service := range file.Services {
 			for _, method := range service.Methods {
-				policy := methodAuthPolicy(method)
+				policy := authPolicyForMethod(service, method)
 				if policy.level == public && len(policy.requiredScopes) > 0 {
 					return fmt.Errorf("%s: PUBLIC RPCs must not declare required_scopes", method.Desc.FullName())
 				}
@@ -121,7 +121,7 @@ func generateService(g *protogen.GeneratedFile, imports imports, service *protog
 	g.P("func (i *", typeName, ") verify(ctx ", imports.context("Context"), ", procedure string) error {")
 	g.P("\tswitch procedure {")
 	for _, method := range service.Methods {
-		policy := methodAuthPolicy(method)
+		policy := authPolicyForMethod(service, method)
 		g.P("\tcase ", fmt.Sprintf("%q", procedure(service, method)), ":")
 		if policy.level == public {
 			g.P("\t\treturn nil")
@@ -180,31 +180,46 @@ type authPolicy struct {
 
 func defaultAuthPolicy() authPolicy { return authPolicy{level: authenticated} }
 
-func methodAuthPolicy(method *protogen.Method) authPolicy {
+// authPolicyForMethod resolves policy in order: method, service, then the
+// fail-closed default. An explicitly unspecified policy is considered set and
+// therefore resolves to the fail-closed default rather than inheriting.
+func authPolicyForMethod(service *protogen.Service, method *protogen.Method) authPolicy {
+	if policy, ok := authPolicyFromUnknown(method.Desc.Options().ProtoReflect().GetUnknown()); ok {
+		return policy
+	}
+	if policy, ok := authPolicyFromUnknown(service.Desc.Options().ProtoReflect().GetUnknown()); ok {
+		return policy
+	}
+	return defaultAuthPolicy()
+}
+
+// authPolicyFromUnknown returns whether an auth_policy extension was present.
+func authPolicyFromUnknown(unknown []byte) (authPolicy, bool) {
 	policy := defaultAuthPolicy()
-	unknown := method.Desc.Options().ProtoReflect().GetUnknown()
+	found := false
 	for len(unknown) > 0 {
 		number, typ, n := protowire.ConsumeTag(unknown)
 		if n < 0 {
-			return defaultAuthPolicy()
+			return defaultAuthPolicy(), false
 		}
 		unknown = unknown[n:]
 		m := protowire.ConsumeFieldValue(number, typ, unknown)
 		if m < 0 {
-			return defaultAuthPolicy()
+			return defaultAuthPolicy(), false
 		}
 		value := unknown[:m]
 		unknown = unknown[m:]
 		if number != authPolicyFieldNumber || typ != protowire.BytesType {
 			continue
 		}
+		found = true
 		decoded, ok := decodeAuthPolicy(value, policy)
 		if !ok {
-			return defaultAuthPolicy()
+			return defaultAuthPolicy(), true
 		}
 		policy = decoded
 	}
-	return policy
+	return policy, found
 }
 
 func decodeAuthPolicy(value []byte, policy authPolicy) (authPolicy, bool) {

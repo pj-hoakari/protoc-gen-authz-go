@@ -72,6 +72,47 @@ func TestGenerateUsesAuthPolicyAndFailsClosed(t *testing.T) {
 	}
 }
 
+func TestGenerateResolvesAuthPolicyMethodThenServiceThenFailsClosed(t *testing.T) {
+	serviceOptions := &descriptorpb.ServiceOptions{}
+	serviceOptions.ProtoReflect().SetUnknown(authPolicyUnknown(internal, "service.scope"))
+	methodOptions := &descriptorpb.MethodOptions{}
+	methodOptions.ProtoReflect().SetUnknown(authPolicyUnknown(public))
+	unspecifiedOptions := &descriptorpb.MethodOptions{}
+	unspecifiedOptions.ProtoReflect().SetUnknown(authPolicyUnknown(unspecified))
+
+	file := &descriptorpb.FileDescriptorProto{
+		Name:        proto.String("example/v1/example.proto"),
+		Package:     proto.String("example.v1"),
+		Options:     &descriptorpb.FileOptions{GoPackage: proto.String("example.com/example/gen/examplev1;examplev1")},
+		MessageType: []*descriptorpb.DescriptorProto{{Name: proto.String("Request")}, {Name: proto.String("Response")}},
+		Service: []*descriptorpb.ServiceDescriptorProto{{
+			Name: proto.String("ExampleService"), Options: serviceOptions,
+			Method: []*descriptorpb.MethodDescriptorProto{
+				{Name: proto.String("Inherited"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response")},
+				{Name: proto.String("Overridden"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: methodOptions},
+				{Name: proto.String("ExplicitUnspecified"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: unspecifiedOptions},
+			},
+		}},
+	}
+	plugin, err := (protogen.Options{}).New(&pluginpb.CodeGeneratorRequest{ProtoFile: []*descriptorpb.FileDescriptorProto{file}, FileToGenerate: []string{file.GetName()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Generate(plugin); err != nil {
+		t.Fatal(err)
+	}
+	content := plugin.Response().File[0].GetContent()
+	for _, want := range []string{
+		"case \"/example.v1.ExampleService/Inherited\":\n\t\tif err := i.verifier.Verify(ctx, AuthPolicy{Level: AuthLevelInternal, RequiredScopes: []string{\"service.scope\"}})",
+		"case \"/example.v1.ExampleService/Overridden\":\n\t\treturn nil",
+		"case \"/example.v1.ExampleService/ExplicitUnspecified\":\n\t\tif err := i.verifier.Verify(ctx, AuthPolicy{Level: AuthLevelAuthenticated})",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("generated code does not contain %q:\\n%s", want, content)
+		}
+	}
+}
+
 func authPolicyUnknown(level int, scopes ...string) []byte {
 	policy := protowire.AppendTag(nil, 1, protowire.VarintType)
 	policy = protowire.AppendVarint(policy, uint64(level))

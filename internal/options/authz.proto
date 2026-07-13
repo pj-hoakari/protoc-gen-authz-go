@@ -20,7 +20,8 @@ enum AuthLevel {
   AUTH_LEVEL_INTERNAL = 3;
 }
 
-// AuthPolicy is an authorization policy that may be associated with an RPC.
+// AuthPolicy is an authorization policy that may be associated with an RPC or
+// a service. A method-level policy takes precedence over its service policy.
 // required_scopes is intentionally declarative: a verifier decides how scopes
 // are represented and enforced.
 message AuthPolicy {
@@ -30,4 +31,8 @@ message AuthPolicy {
 
 extend google.protobuf.MethodOptions {
   AuthPolicy auth_policy = 50001;
+}
+
+extend google.protobuf.ServiceOptions {
+  AuthPolicy service_auth_policy = 50001;
 }

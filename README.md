@@ -8,6 +8,11 @@
 import "authz/v1/authz.proto";
 
 service GreeterService {
+  option (authz.v1.service_auth_policy) = {
+    level: AUTH_LEVEL_AUTHENTICATED
+    required_scopes: "greeting.read"
+  };
+
   rpc SayHello(SayHelloRequest) returns (SayHelloResponse) {
     option (authz.v1.auth_policy) = {
       level: AUTH_LEVEL_AUTHENTICATED
@@ -17,7 +22,9 @@ service GreeterService {
 }
 ```
 
-未指定または `AUTH_LEVEL_UNSPECIFIED` は fail-closed で `AUTH_LEVEL_AUTHENTICATED` として生成  
+RPC には `auth_policy`、service には `service_auth_policy` を設定できる  
+解決順は RPC (Method) → Service → fail-closed  
+未指定または `AUTH_LEVEL_UNSPECIFIED` は fail-closed で `AUTH_LEVEL_AUTHENTICATED` として生成される
 
 ## Generated API
 
