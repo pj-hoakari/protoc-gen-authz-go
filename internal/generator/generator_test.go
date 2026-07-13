@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/encoding/protowire"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
@@ -22,20 +21,20 @@ func TestGenerateUsesAuthPolicyAndFailsClosed(t *testing.T) {
 	internalOptions.ProtoReflect().SetUnknown(authPolicyUnknown(internal, "greeting.read", "greeting.write"))
 
 	file := &descriptorpb.FileDescriptorProto{
-		Name:    proto.String("example/v1/example.proto"),
-		Package: proto.String("example.v1"),
-		Options: &descriptorpb.FileOptions{GoPackage: proto.String("example.com/example/gen/examplev1;examplev1")},
+		Name:    new("example/v1/example.proto"),
+		Package: new("example.v1"),
+		Options: &descriptorpb.FileOptions{GoPackage: new("example.com/example/gen/examplev1;examplev1")},
 		MessageType: []*descriptorpb.DescriptorProto{
-			{Name: proto.String("Request")},
-			{Name: proto.String("Response")},
+			{Name: new("Request")},
+			{Name: new("Response")},
 		},
 		Service: []*descriptorpb.ServiceDescriptorProto{{
-			Name: proto.String("ExampleService"),
+			Name: new("ExampleService"),
 			Method: []*descriptorpb.MethodDescriptorProto{
-				{Name: proto.String("Public"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: publicOptions},
-				{Name: proto.String("Default"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response")},
-				{Name: proto.String("Unspecified"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: unspecifiedOptions},
-				{Name: proto.String("Internal"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: internalOptions},
+				{Name: new("Public"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response"), Options: publicOptions},
+				{Name: new("Default"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response")},
+				{Name: new("Unspecified"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response"), Options: unspecifiedOptions},
+				{Name: new("Internal"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response"), Options: internalOptions},
 			},
 		}},
 	}
@@ -81,16 +80,16 @@ func TestGenerateResolvesAuthPolicyMethodThenServiceThenFailsClosed(t *testing.T
 	unspecifiedOptions.ProtoReflect().SetUnknown(authPolicyUnknown(unspecified))
 
 	file := &descriptorpb.FileDescriptorProto{
-		Name:        proto.String("example/v1/example.proto"),
-		Package:     proto.String("example.v1"),
-		Options:     &descriptorpb.FileOptions{GoPackage: proto.String("example.com/example/gen/examplev1;examplev1")},
-		MessageType: []*descriptorpb.DescriptorProto{{Name: proto.String("Request")}, {Name: proto.String("Response")}},
+		Name:        new("example/v1/example.proto"),
+		Package:     new("example.v1"),
+		Options:     &descriptorpb.FileOptions{GoPackage: new("example.com/example/gen/examplev1;examplev1")},
+		MessageType: []*descriptorpb.DescriptorProto{{Name: new("Request")}, {Name: new("Response")}},
 		Service: []*descriptorpb.ServiceDescriptorProto{{
-			Name: proto.String("ExampleService"), Options: serviceOptions,
+			Name: new("ExampleService"), Options: serviceOptions,
 			Method: []*descriptorpb.MethodDescriptorProto{
-				{Name: proto.String("Inherited"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response")},
-				{Name: proto.String("Overridden"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: methodOptions},
-				{Name: proto.String("ExplicitUnspecified"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: unspecifiedOptions},
+				{Name: new("Inherited"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response")},
+				{Name: new("Overridden"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response"), Options: methodOptions},
+				{Name: new("ExplicitUnspecified"), InputType: new(".example.v1.Request"), OutputType: new(".example.v1.Response"), Options: unspecifiedOptions},
 			},
 		}},
 	}
