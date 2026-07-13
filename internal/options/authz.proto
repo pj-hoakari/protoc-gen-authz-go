@@ -29,5 +29,5 @@ message AuthPolicy {
 }
 
 extend google.protobuf.MethodOptions {
-  AuthLevel auth_level = 50001;
+  AuthPolicy auth_policy = 50001;
 }

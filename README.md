@@ -9,12 +9,15 @@ import "authz/v1/authz.proto";
 
 service GreeterService {
   rpc SayHello(SayHelloRequest) returns (SayHelloResponse) {
-    option (authz.v1.auth_level) = AUTH_LEVEL_PUBLIC;
+    option (authz.v1.auth_policy) = {
+      level: AUTH_LEVEL_AUTHENTICATED
+      required_scopes: "greeting.read"
+    };
   }
 }
 ```
 
-未指定または `AUTH_LEVEL_UNSPECIFIED` は fail-closed で `AUTH_LEVEL_AUTHENTICATED` として生成
+未指定または `AUTH_LEVEL_UNSPECIFIED` は fail-closed で `AUTH_LEVEL_AUTHENTICATED` として生成  
 
 ## Generated API
 
@@ -22,7 +25,7 @@ service GreeterService {
 
 ```go
 type Verifier interface {
-    Verify(context.Context, AuthLevel) error
+    Verify(context.Context, AuthPolicy) error
 }
 
 func NewGreeterServiceHandlerWithAuthz(

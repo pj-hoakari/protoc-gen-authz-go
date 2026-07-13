@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	authLevelFieldNumber = protowire.Number(50001)
-	unspecified          = 0
-	public               = 1
-	authenticated        = 2
-	internal             = 3
+	authPolicyFieldNumber = protowire.Number(50001)
+	unspecified           = 0
+	public                = 1
+	authenticated         = 2
+	internal              = 3
 )
 
 // Generate writes one companion package for every generated proto file that
@@ -25,6 +25,14 @@ func Generate(plugin *protogen.Plugin) error {
 	for _, file := range plugin.Files {
 		if !file.Generate || len(file.Services) == 0 {
 			continue
+		}
+		for _, service := range file.Services {
+			for _, method := range service.Methods {
+				policy := methodAuthPolicy(method)
+				if policy.level == public && len(policy.requiredScopes) > 0 {
+					return fmt.Errorf("%s: PUBLIC RPCs must not declare required_scopes", method.Desc.FullName())
+				}
+			}
 		}
 		if err := generateFile(plugin, file); err != nil {
 			return err
@@ -55,16 +63,22 @@ func generateFile(plugin *protogen.Plugin, file *protogen.File) error {
 	g.P("\tAuthLevelInternal AuthLevel = ", internal)
 	g.P(")")
 	g.P()
-	g.P("// Verifier verifies that ctx satisfies level. It should return a Connect error")
+	g.P("// AuthPolicy is the effective authorization policy of an RPC.")
+	g.P("type AuthPolicy struct {")
+	g.P("\tLevel AuthLevel")
+	g.P("\tRequiredScopes []string")
+	g.P("}")
+	g.P()
+	g.P("// Verifier verifies that ctx satisfies policy. It should return a Connect error")
 	g.P("// when a particular status code is required.")
 	g.P("type Verifier interface {")
-	g.P("\tVerify(", imports.context("Context"), ", AuthLevel) error")
+	g.P("\tVerify(", imports.context("Context"), ", AuthPolicy) error")
 	g.P("}")
 	g.P()
 	g.P("// VerifierFunc adapts a function to Verifier.")
-	g.P("type VerifierFunc func(", imports.context("Context"), ", AuthLevel) error")
+	g.P("type VerifierFunc func(", imports.context("Context"), ", AuthPolicy) error")
 	g.P()
-	g.P("func (f VerifierFunc) Verify(ctx ", imports.context("Context"), ", level AuthLevel) error { return f(ctx, level) }")
+	g.P("func (f VerifierFunc) Verify(ctx ", imports.context("Context"), ", policy AuthPolicy) error { return f(ctx, policy) }")
 
 	for _, service := range file.Services {
 		generateService(g, imports, service)
@@ -107,12 +121,13 @@ func generateService(g *protogen.GeneratedFile, imports imports, service *protog
 	g.P("func (i *", typeName, ") verify(ctx ", imports.context("Context"), ", procedure string) error {")
 	g.P("\tswitch procedure {")
 	for _, method := range service.Methods {
+		policy := methodAuthPolicy(method)
 		g.P("\tcase ", fmt.Sprintf("%q", procedure(service, method)), ":")
-		if methodAuthLevel(method) == public {
+		if policy.level == public {
 			g.P("\t\treturn nil")
 			continue
 		}
-		g.P("\t\tif err := i.verifier.Verify(ctx, ", levelName(methodAuthLevel(method)), "); err != nil {")
+		g.P("\t\tif err := i.verifier.Verify(ctx, ", policyLiteral(policy), "); err != nil {")
 		g.P("\t\t\tvar connectErr *", imports.connect("Error"))
 		g.P("\t\t\tif ", imports.errors("As"), "(err, &connectErr) { return err }")
 		g.P("\t\t\treturn ", imports.connect("NewError"), "(", imports.connect("CodeUnauthenticated"), ", err)")
@@ -158,35 +173,96 @@ func unexport(s string) string {
 	return strings.ToLower(s[:1]) + s[1:]
 }
 
-func methodAuthLevel(method *protogen.Method) int {
+type authPolicy struct {
+	level          int
+	requiredScopes []string
+}
+
+func defaultAuthPolicy() authPolicy { return authPolicy{level: authenticated} }
+
+func methodAuthPolicy(method *protogen.Method) authPolicy {
+	policy := defaultAuthPolicy()
 	unknown := method.Desc.Options().ProtoReflect().GetUnknown()
 	for len(unknown) > 0 {
 		number, typ, n := protowire.ConsumeTag(unknown)
 		if n < 0 {
-			return authenticated
+			return defaultAuthPolicy()
 		}
 		unknown = unknown[n:]
 		m := protowire.ConsumeFieldValue(number, typ, unknown)
 		if m < 0 {
-			return authenticated
+			return defaultAuthPolicy()
 		}
 		value := unknown[:m]
 		unknown = unknown[m:]
-		if number != authLevelFieldNumber || typ != protowire.VarintType {
+		if number != authPolicyFieldNumber || typ != protowire.BytesType {
 			continue
 		}
-		level, n := protowire.ConsumeVarint(value)
-		if n < 0 {
-			return authenticated
+		decoded, ok := decodeAuthPolicy(value, policy)
+		if !ok {
+			return defaultAuthPolicy()
 		}
-		switch int(level) {
-		case public, authenticated, internal:
-			return int(level)
-		default:
-			return authenticated
+		policy = decoded
+	}
+	return policy
+}
+
+func decodeAuthPolicy(value []byte, policy authPolicy) (authPolicy, bool) {
+	message, n := protowire.ConsumeBytes(value)
+	if n < 0 {
+		return defaultAuthPolicy(), false
+	}
+	for len(message) > 0 {
+		number, typ, n := protowire.ConsumeTag(message)
+		if n < 0 {
+			return defaultAuthPolicy(), false
+		}
+		message = message[n:]
+		m := protowire.ConsumeFieldValue(number, typ, message)
+		if m < 0 {
+			return defaultAuthPolicy(), false
+		}
+		field := message[:m]
+		message = message[m:]
+		switch {
+		case number == 1 && typ == protowire.VarintType:
+			level, n := protowire.ConsumeVarint(field)
+			if n < 0 {
+				return defaultAuthPolicy(), false
+			}
+			switch int(level) {
+			case public, authenticated, internal:
+				policy.level = int(level)
+			default:
+				policy.level = authenticated
+			}
+		case number == 2 && typ == protowire.BytesType:
+			scope, n := protowire.ConsumeString(field)
+			if n < 0 {
+				return defaultAuthPolicy(), false
+			}
+			policy.requiredScopes = append(policy.requiredScopes, scope)
 		}
 	}
-	return authenticated
+	return policy, true
+}
+
+func policyLiteral(policy authPolicy) string {
+	var b strings.Builder
+	b.WriteString("AuthPolicy{Level: ")
+	b.WriteString(levelName(policy.level))
+	if len(policy.requiredScopes) > 0 {
+		b.WriteString(", RequiredScopes: []string{")
+		for i, scope := range policy.requiredScopes {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(fmt.Sprintf("%q", scope))
+		}
+		b.WriteString("}")
+	}
+	b.WriteString("}")
+	return b.String()
 }
 
 func levelName(level int) string {

@@ -13,11 +13,13 @@ import (
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
-func TestGenerateUsesAuthLevelAndFailsClosed(t *testing.T) {
+func TestGenerateUsesAuthPolicyAndFailsClosed(t *testing.T) {
 	publicOptions := &descriptorpb.MethodOptions{}
-	publicOptions.ProtoReflect().SetUnknown(authLevelUnknown(public))
+	publicOptions.ProtoReflect().SetUnknown(authPolicyUnknown(public))
 	unspecifiedOptions := &descriptorpb.MethodOptions{}
-	unspecifiedOptions.ProtoReflect().SetUnknown(authLevelUnknown(unspecified))
+	unspecifiedOptions.ProtoReflect().SetUnknown(authPolicyUnknown(unspecified))
+	internalOptions := &descriptorpb.MethodOptions{}
+	internalOptions.ProtoReflect().SetUnknown(authPolicyUnknown(internal, "greeting.read", "greeting.write"))
 
 	file := &descriptorpb.FileDescriptorProto{
 		Name:    proto.String("example/v1/example.proto"),
@@ -33,6 +35,7 @@ func TestGenerateUsesAuthLevelAndFailsClosed(t *testing.T) {
 				{Name: proto.String("Public"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: publicOptions},
 				{Name: proto.String("Default"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response")},
 				{Name: proto.String("Unspecified"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: unspecifiedOptions},
+				{Name: proto.String("Internal"), InputType: proto.String(".example.v1.Request"), OutputType: proto.String(".example.v1.Response"), Options: internalOptions},
 			},
 		}},
 	}
@@ -56,7 +59,8 @@ func TestGenerateUsesAuthLevelAndFailsClosed(t *testing.T) {
 		"case \"/example.v1.ExampleService/Public\":",
 		"case \"/example.v1.ExampleService/Default\":",
 		"case \"/example.v1.ExampleService/Unspecified\":",
-		"i.verifier.Verify(ctx, AuthLevelAuthenticated)",
+		"i.verifier.Verify(ctx, AuthPolicy{Level: AuthLevelAuthenticated})",
+		"i.verifier.Verify(ctx, AuthPolicy{Level: AuthLevelInternal, RequiredScopes: []string{\"greeting.read\", \"greeting.write\"}})",
 		"func NewExampleServiceHandlerWithAuthz",
 	} {
 		if !strings.Contains(content, want) {
@@ -68,7 +72,13 @@ func TestGenerateUsesAuthLevelAndFailsClosed(t *testing.T) {
 	}
 }
 
-func authLevelUnknown(level int) []byte {
-	unknown := protowire.AppendTag(nil, authLevelFieldNumber, protowire.VarintType)
-	return protowire.AppendVarint(unknown, uint64(level))
+func authPolicyUnknown(level int, scopes ...string) []byte {
+	policy := protowire.AppendTag(nil, 1, protowire.VarintType)
+	policy = protowire.AppendVarint(policy, uint64(level))
+	for _, scope := range scopes {
+		policy = protowire.AppendTag(policy, 2, protowire.BytesType)
+		policy = protowire.AppendString(policy, scope)
+	}
+	unknown := protowire.AppendTag(nil, authPolicyFieldNumber, protowire.BytesType)
+	return protowire.AppendBytes(unknown, policy)
 }
