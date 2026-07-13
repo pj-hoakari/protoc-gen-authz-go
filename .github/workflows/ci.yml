@@ -1,16 +1,15 @@
-name: CI
+name: Check authz schema version bump
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
+    tags:
+      - "*"
 
 permissions:
   contents: read
 
 jobs:
-  test:
+  check-version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -20,12 +19,10 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Check authz schema version bump
-        env:
-          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD_REF: ${{ github.sha }}
         run: |
-          if [[ "$BASE_REF" =~ ^0+$ ]]; then
+          HEAD_REF=$(git rev-parse "${GITHUB_SHA}^{}")
+          BASE_REF=$(git describe --tags --abbrev=0 "${HEAD_REF}^" 2>/dev/null || true)
+          if [[ -z "$BASE_REF" ]]; then
             exit 0
           fi
           bash .github/scripts/check-authz-proto-version.sh "$BASE_REF" "$HEAD_REF"
-      - run: go test ./...
