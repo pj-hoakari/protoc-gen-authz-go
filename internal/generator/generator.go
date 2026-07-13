@@ -11,17 +11,27 @@ import (
 )
 
 const (
-	authPolicyFieldNumber = protowire.Number(50001)
-	unspecified           = 0
-	public                = 1
-	authenticated         = 2
-	internal              = 3
+	authPolicyFieldNumber  = protowire.Number(50001)
+	authzProtoVersionField = protowire.Number(50002)
+	supportedProtoVersion  = 1
+	authzProtoFilename     = "authz/v1/authz.proto"
+	unspecified            = 0
+	public                 = 1
+	authenticated          = 2
+	internal               = 3
 )
+
+// SupportedProtoVersion returns the authz option schema version understood by
+// this plugin.
+func SupportedProtoVersion() int { return supportedProtoVersion }
 
 // Generate writes one companion package for every generated proto file that
 // declares at least one service. The companion package intentionally matches
 // protoc-gen-connect-go's <go_package basename>connect convention.
 func Generate(plugin *protogen.Plugin) error {
+	if err := validateAuthzProtoVersion(plugin); err != nil {
+		return err
+	}
 	for _, file := range plugin.Files {
 		if !file.Generate || len(file.Services) == 0 {
 			continue
@@ -39,6 +49,49 @@ func Generate(plugin *protogen.Plugin) error {
 		}
 	}
 	return nil
+}
+
+// validateAuthzProtoVersion ensures that a schema copied into a consumer's
+// repository is compatible with the version understood by this plugin.
+func validateAuthzProtoVersion(plugin *protogen.Plugin) error {
+	for _, file := range plugin.Files {
+		if file.Desc.Path() != authzProtoFilename {
+			continue
+		}
+		version, ok := authzProtoVersion(file.Desc.Options().ProtoReflect().GetUnknown())
+		if !ok {
+			return fmt.Errorf("%s: missing authz_proto_version; expected version %d", authzProtoFilename, supportedProtoVersion)
+		}
+		if version != supportedProtoVersion {
+			return fmt.Errorf("%s: version %d is incompatible with protoc-gen-authz-go (expected %d)", authzProtoFilename, version, supportedProtoVersion)
+		}
+	}
+	return nil
+}
+
+func authzProtoVersion(unknown []byte) (uint64, bool) {
+	for len(unknown) > 0 {
+		number, typ, n := protowire.ConsumeTag(unknown)
+		if n < 0 {
+			return 0, false
+		}
+		unknown = unknown[n:]
+		m := protowire.ConsumeFieldValue(number, typ, unknown)
+		if m < 0 {
+			return 0, false
+		}
+		value := unknown[:m]
+		unknown = unknown[m:]
+		if number != authzProtoVersionField || typ != protowire.VarintType {
+			continue
+		}
+		version, n := protowire.ConsumeVarint(value)
+		if n < 0 {
+			return 0, false
+		}
+		return version, true
+	}
+	return 0, false
 }
 
 func generateFile(plugin *protogen.Plugin, file *protogen.File) error {

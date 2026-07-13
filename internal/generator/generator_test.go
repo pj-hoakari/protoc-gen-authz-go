@@ -112,6 +112,40 @@ func TestGenerateResolvesAuthPolicyMethodThenServiceThenFailsClosed(t *testing.T
 	}
 }
 
+func TestAuthzProtoVersion(t *testing.T) {
+	version := protowire.AppendTag(nil, authzProtoVersionField, protowire.VarintType)
+	version = protowire.AppendVarint(version, supportedProtoVersion)
+	got, ok := authzProtoVersion(version)
+	if !ok || got != supportedProtoVersion {
+		t.Fatalf("authzProtoVersion() = (%d, %t), want (%d, true)", got, ok, supportedProtoVersion)
+	}
+	if _, ok := authzProtoVersion(nil); ok {
+		t.Fatal("authzProtoVersion() accepted a missing version")
+	}
+}
+
+func TestSupportedProtoVersion(t *testing.T) {
+	if got := SupportedProtoVersion(); got != supportedProtoVersion {
+		t.Fatalf("SupportedProtoVersion() = %d, want %d", got, supportedProtoVersion)
+	}
+}
+
+func TestGenerateRejectsIncompatibleAuthzProtoVersion(t *testing.T) {
+	options := &descriptorpb.FileOptions{}
+	version := protowire.AppendTag(nil, authzProtoVersionField, protowire.VarintType)
+	options.ProtoReflect().SetUnknown(protowire.AppendVarint(version, supportedProtoVersion+1))
+	options.GoPackage = new("example.com/authz/authzv1")
+	file := &descriptorpb.FileDescriptorProto{Name: new(authzProtoFilename), Options: options}
+	plugin, err := (protogen.Options{}).New(&pluginpb.CodeGeneratorRequest{ProtoFile: []*descriptorpb.FileDescriptorProto{file}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Generate(plugin)
+	if err == nil || !strings.Contains(err.Error(), "incompatible") {
+		t.Fatalf("Generate() error = %v, want incompatible version error", err)
+	}
+}
+
 func authPolicyUnknown(level int, scopes ...string) []byte {
 	policy := protowire.AppendTag(nil, 1, protowire.VarintType)
 	policy = protowire.AppendVarint(policy, uint64(level))

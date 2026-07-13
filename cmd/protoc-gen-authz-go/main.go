@@ -11,6 +11,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--proto-version" {
+		fmt.Println(generator.SupportedProtoVersion())
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "--proto-path" {
 		path, err := options.ProtoPath()
 		if err != nil {

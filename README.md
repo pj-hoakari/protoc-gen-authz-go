@@ -55,6 +55,9 @@ protoc-gen-authz-go --write-proto proto
 # proto/authz/v1/authz.proto が作成される
 ```
 
+生成時には、書き出した `authz/v1/authz.proto` のバージョンとプラグインが認識するバージョンの一致を検証する
+不一致またはバージョン未宣言の schema は生成エラーになる
+
 `protoc-gen-connect-go` と同時に実行
 
 ```sh
@@ -66,3 +69,13 @@ protoc -I. -I"$(protoc-gen-authz-go --proto-path)" \
 ```
 
 実際の生成・DI・HTTP middleware との組み合わせは [`example/`](example/) を参照してください。
+
+## Develop
+
+`authz.proto` を変更する場合は、`option (authz.v1.authz_proto_version)` とプラグインの認識バージョンも同じ新しい値へ更新する  
+
+CI では 
+- schema の全変更について、両方のバージョンが前のリビジョンより増えて一致することの検証
+- `protoc-gen-authz-go --proto-version` でプラグインが認識するバージョンの取得・検証  
+
+を行う
