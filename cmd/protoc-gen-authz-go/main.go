@@ -20,6 +20,15 @@ func main() {
 		fmt.Println(path)
 		return
 	}
+	if len(os.Args) == 3 && os.Args[1] == "--write-proto" {
+		filename, err := options.WriteProto(os.Args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "protoc-gen-authz-go:", err)
+			os.Exit(1)
+		}
+		fmt.Println(filename)
+		return
+	}
 	options := protogen.Options{}
 	options.Run(generator.Generate)
 }

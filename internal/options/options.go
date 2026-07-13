@@ -22,16 +22,26 @@ func ProtoPath() (string, error) {
 		return "", fmt.Errorf("locate user cache directory: %w", err)
 	}
 	root := filepath.Join(cacheDir, "protoc-gen-authz-go", "v1")
+	if _, err := WriteProto(root); err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+// WriteProto writes the bundled schema below root and returns its filename.
+// The resulting layout is root/authz/v1/authz.proto, so root can be passed to
+// protoc as an include directory.
+func WriteProto(root string) (string, error) {
 	filename := filepath.Join(root, "authz", "v1", "authz.proto")
 	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
-		return "", fmt.Errorf("create authz proto cache: %w", err)
+		return "", fmt.Errorf("create authz proto directory: %w", err)
 	}
 	current, err := os.ReadFile(filename)
 	if err == nil && string(current) == string(Proto) {
-		return root, nil
+		return filename, nil
 	}
 	if err := os.WriteFile(filename, Proto, 0o644); err != nil {
-		return "", fmt.Errorf("write embedded authz proto: %w", err)
+		return "", fmt.Errorf("write authz proto: %w", err)
 	}
-	return root, nil
+	return filename, nil
 }

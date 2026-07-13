@@ -48,6 +48,13 @@ verifier が返した Connect error はそのまま返し、その他のエラ�
 
 ## Usage
 
+利用側のリポジトリで include root を指定して schema を書き出す
+
+```sh
+protoc-gen-authz-go --write-proto proto
+# proto/authz/v1/authz.proto が作成される
+```
+
 `protoc-gen-connect-go` と同時に実行
 
 ```sh
