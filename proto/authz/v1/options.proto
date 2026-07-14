@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package authz.v1;
+
+option go_package = "github.com/pj-hoakari/protoc-gen-authz-go/authz/v1;authzv1";
+
+import "google/protobuf/descriptor.proto";
+
+// authz_proto_version is checked by protoc-gen-authz-go before generation.
+// Increment it when making an incompatible change to this option schema.
+extend google.protobuf.FileOptions {
+  uint32 authz_proto_version = 50002;
+}
+
+option (authz.v1.authz_proto_version) = 1;
+
+// AuthLevel declares the authentication and exposure policy for an RPC.
+enum AuthLevel {
+  // AUTH_LEVEL_UNSPECIFIED is intentionally fail-closed and is handled as
+  // AUTH_LEVEL_AUTHENTICATED by protoc-gen-authz-go.
+  AUTH_LEVEL_UNSPECIFIED = 0;
+  // AUTH_LEVEL_PUBLIC permits unauthenticated requests.
+  AUTH_LEVEL_PUBLIC = 1;
+  // AUTH_LEVEL_AUTHENTICATED requires an internal JWT.
+  AUTH_LEVEL_AUTHENTICATED = 2;
+  // AUTH_LEVEL_INTERNAL is for service-to-service RPCs and must not be
+  // exposed externally by a gateway.
+  AUTH_LEVEL_INTERNAL = 3;
+}
+
+// AuthPolicy is an authorization policy that may be associated with an RPC or
+// a service. A method-level policy takes precedence over its service policy.
+// required_scopes is intentionally declarative: a verifier decides how scopes
+// are represented and enforced.
+message AuthPolicy {
+  AuthLevel level = 1;
+  repeated string required_scopes = 2;
+}
+
+extend google.protobuf.MethodOptions {
+  AuthPolicy auth_policy = 50001;
+}
+
+extend google.protobuf.ServiceOptions {
+  AuthPolicy service_auth_policy = 50001;
+}
