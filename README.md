@@ -5,7 +5,7 @@
 ## Custom option
 
 ```proto
-import "authz/v1/authz.proto";
+import "authz/v1/options.proto";
 
 service GreeterService {
   option (authz.v1.service_auth_policy) = {
@@ -48,14 +48,17 @@ verifier が返した Connect error はそのまま返し、その他のエラ�
 
 ## Usage
 
-利用側のリポジトリで include root を指定して schema を書き出す
+`authz/v1/options.pb.go` はこのモジュールに同梱されているため、利用側で custom option 用の Go コードを生成する必要はない  
+利用側では `github.com/pj-hoakari/protoc-gen-authz-go/authz/v1` を Go module の依存に追加する  
+
+`protoc` 用の schema は利用側のリポジトリで include root に書き出すことができる  
 
 ```sh
 protoc-gen-authz-go --write-proto proto
-# proto/authz/v1/authz.proto が作成される
+# proto/authz/v1/options.proto が作成される
 ```
 
-生成時には、書き出した `authz/v1/authz.proto` のバージョンとプラグインが認識するバージョンの一致を検証する
+生成時には、書き出した `authz/v1/options.proto` のバージョンとプラグインが認識するバージョンの一致を検証する
 不一致またはバージョン未宣言の schema は生成エラーになる
 
 `protoc-gen-connect-go` と同時に実行
@@ -68,11 +71,9 @@ protoc -I. -I"$(protoc-gen-authz-go --proto-path)" \
   api/greeting/v1/greeting.proto
 ```
 
-実際の生成・DI・HTTP middleware との組み合わせは [`example/`](example/) を参照してください。
-
 ## Develop
 
-`authz.proto` を変更する場合は、`option (authz.v1.authz_proto_version)` とプラグインの認識バージョンも同じ新しい値へ更新する  
+正規の schema は `proto/authz/v1/options.proto`。これを変更する場合は、`option (authz.v1.authz_proto_version)` とプラグインの認識バージョンも同じ新しい値へ更新し、`task proto:gen:go` で生成物を更新する
 
 CI では 
 - schema の全変更について、両方のバージョンが前のリビジョンより増えて一致することの検証
