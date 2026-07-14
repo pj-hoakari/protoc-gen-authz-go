@@ -2,20 +2,18 @@
 package options
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/pj-hoakari/protoc-gen-authz-go/proto/authz/v1"
 )
 
 // Proto is the custom option definition bundled into protoc-gen-authz-go.
-//
-//go:embed authz.proto
-var Proto []byte
+var Proto = authzv1schema.OptionsProto()
 
 // ProtoPath materializes the bundled schema in the user's cache directory and
-// returns the include root suitable for protoc's -I option. Callers import it
-// as "authz/v1/authz.proto"; no schema file needs to be tracked by a consumer.
+// returns the include root suitable for protoc's -I option.
 func ProtoPath() (string, error) {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
@@ -29,10 +27,10 @@ func ProtoPath() (string, error) {
 }
 
 // WriteProto writes the bundled schema below root and returns its filename.
-// The resulting layout is root/authz/v1/authz.proto, so root can be passed to
-// protoc as an include directory.
+// The resulting layout is root/authz/v1/options.proto, so root can be passed
+// to protoc as an include directory.
 func WriteProto(root string) (string, error) {
-	filename := filepath.Join(root, "authz", "v1", "authz.proto")
+	filename := filepath.Join(root, "authz", "v1", "options.proto")
 	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
 		return "", fmt.Errorf("create authz proto directory: %w", err)
 	}

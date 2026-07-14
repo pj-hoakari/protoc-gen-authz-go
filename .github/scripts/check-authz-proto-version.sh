@@ -9,7 +9,7 @@ fi
 
 base_ref=$1
 head_ref=$2
-schema_path=internal/options/authz.proto
+schema_path=proto/authz/v1/options.proto
 
 die() {
   echo "check-authz-proto-version: $*" >&2

@@ -12,7 +12,7 @@ func TestWriteProto(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join(root, "authz", "v1", "authz.proto")
+	want := filepath.Join(root, "authz", "v1", "options.proto")
 	if filename != want {
 		t.Fatalf("WriteProto() returned %q, want %q", filename, want)
 	}
