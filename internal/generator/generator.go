@@ -14,7 +14,7 @@ const (
 	authPolicyFieldNumber  = protowire.Number(50001)
 	authzProtoVersionField = protowire.Number(50002)
 	supportedProtoVersion  = 1
-	authzProtoFilename     = "authz/v1/authz.proto"
+	authzProtoFilename     = "authz/v1/options.proto"
 	unspecified            = 0
 	public                 = 1
 	authenticated          = 2

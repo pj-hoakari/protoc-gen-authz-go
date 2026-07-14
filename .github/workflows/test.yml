@@ -18,3 +18,42 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go test ./...
+
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up buf
+        uses: bufbuild/buf-action@fd21066df7214747548607aaa45548ba2b9bc1ff # v1.4.0
+        with:
+          setup_only: true
+          version: 1.70.0
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint proto
+        run: task proto:lint
+
+      - name: Regenerate Go code
+        run: task proto:gen:go
+
+      - name: Verify generated code is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- authz/v1/)" ]; then
+            echo "::error::生成コードが最新ではありません"
+            git status --porcelain -- authz/v1/
+            git diff -- authz/v1/
+            exit 1
+          fi

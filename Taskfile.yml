@@ -1,0 +1,14 @@
+version: '3'
+
+tasks:
+  proto:
+    cmds:
+      - task: proto:lint
+      - task: proto:gen:go
+  proto:lint:
+    cmds:
+      - buf lint
+
+  proto:gen:go:
+    cmds:
+      - buf generate
