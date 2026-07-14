@@ -1,9 +1,9 @@
 name: Check authz schema version bump
 
 on:
-  push:
-    tags:
-      - "*"
+  pull_request:
+    branches:
+      - "main"
 
 permissions:
   contents: read
