@@ -1,4 +1,4 @@
 [tools]
-buf = "1.71.0"
+buf = "1.72.0"
 go = "1.26"
 shellcheck = "latest"
