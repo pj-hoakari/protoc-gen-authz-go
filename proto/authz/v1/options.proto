@@ -12,7 +12,7 @@ extend google.protobuf.FileOptions {
   uint32 authz_proto_version = 50002;
 }
 
-option (authz.v1.authz_proto_version) = 1;
+option (authz.v1.authz_proto_version) = 2;
 
 // AuthLevel declares the authentication and exposure policy for an RPC.
 enum AuthLevel {
@@ -30,11 +30,14 @@ enum AuthLevel {
 
 // AuthPolicy is an authorization policy that may be associated with an RPC or
 // a service. A method-level policy takes precedence over its service policy.
-// required_scopes is intentionally declarative: a verifier decides how scopes
-// are represented and enforced.
+// required_scopes and token_uses are intentionally declarative: a verifier
+// decides how scopes and token uses are represented and enforced.
 message AuthPolicy {
   AuthLevel level = 1;
   repeated string required_scopes = 2;
+  // token_uses are the token_use values the RPC accepts. An empty list leaves
+  // the choice to the level defaults of the consumer's interceptor.
+  repeated string token_uses = 3;
 }
 
 extend google.protobuf.MethodOptions {
