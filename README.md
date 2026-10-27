@@ -117,6 +117,19 @@ protoc -I. -I"$(protoc-gen-authz-go --proto-path)" \
   api/greeting/v1/greeting.proto
 ```
 
+### Go 以外の利用側
+
+`authz/v1/options.proto` は [ORAS](https://oras.land) で OCI アーティファクト化され、GitHub Container Registry に公開される  
+アーティファクト名: `ghcr.io/pj-hoakari/protoc-gen-authz-go-proto`  
+タグは Go モジュールのタグから先頭の `v` を除いた版で、同じ版の Go モジュールに埋め込まれた schema と中身が一致する
+
+Go を使わない利用側は、サービスの proto が import する `authz/v1/options.proto` をここから取得する
+
+```sh
+oras pull ghcr.io/pj-hoakari/protoc-gen-authz-go-proto:<version> -o proto
+# proto/authz/v1/options.proto が作成される
+```
+
 ## Develop
 
 正規の schema は `proto/authz/v1/options.proto`。これを変更する場合は、`option (authz.v1.authz_proto_version)` とプラグインの認識バージョンも同じ新しい値へ更新し、`task proto:gen:go` で生成物を更新する
@@ -126,3 +139,5 @@ CI では
 - `protoc-gen-authz-go --proto-version` でプラグインが認識するバージョンの取得・検証  
 
 を行う
+
+タグ `vX.Y.Z` を push すると、`publish-proto.yml` が同じ版の schema を ORAS の成果物として公開する
