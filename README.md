@@ -137,6 +137,7 @@ oras pull ghcr.io/pj-hoakari/protoc-gen-authz-go-proto:<version> -o proto
 CI では 
 - schema の全変更について、両方のバージョンが前のリビジョンより増えて一致することの検証
 - `protoc-gen-authz-go --proto-version` でプラグインが認識するバージョンの取得・検証  
+- `buf breaking` による、最新のタグの schema と比べた互換性の検証  
 
 を行う
 
