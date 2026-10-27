@@ -141,4 +141,6 @@ CI では
 
 を行う
 
+互換性を意図して壊すときは、`ALLOW_BREAKING=true task proto:breaking` で検査する。違反を表示したうえで成功として終わる。CI の `proto-breaking` ジョブは失敗したままでもマージできる。マージしたあとは、次のリリースタグを打つまでこのジョブが失敗し続ける
+
 タグ `vX.Y.Z` を push すると、`publish-proto.yml` が同じ版の schema を ORAS の成果物として公開する
