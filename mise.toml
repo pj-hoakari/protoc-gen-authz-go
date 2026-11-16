@@ -1,5 +1,5 @@
 [tools]
 buf = "1.75.0"
-go = "1.27.3"
+go = "1.27.4"
 oras = "latest"
 shellcheck = "latest"
